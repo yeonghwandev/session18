@@ -9,7 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.107.0",
+    "@tavily/core": "^0.7.5",
+    "ai": "^6.0.195",
     "next": "16.2.7",
+    "openai": "^6.41.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
