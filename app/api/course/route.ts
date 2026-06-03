@@ -26,6 +26,7 @@ async function searchCurrentEvents(query: string) {
   const result = await tvly.search(`성수동 ${query} 2026년 6월`, {
     maxResults: 5,
     includeAnswer: false,
+    days: 30,
   })
   return result.results.map((r: { title: string; url: string; content: string }) => ({
     title: r.title,
