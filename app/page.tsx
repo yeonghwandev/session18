@@ -79,7 +79,7 @@ function CourseCard({ course }: { course: Course }) {
               rel="noopener noreferrer"
               className="mt-3 inline-flex items-center gap-1 rounded-lg bg-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-600 transition-colors"
             >
-              {step.category === '팝업' ? '🔗 자세히 보기' : '🗺️ 카카오맵'}
+              {step.category.includes('팝업') ? '🔗 자세히 보기' : '🗺️ 카카오맵'}
             </a>
           )}
         </div>

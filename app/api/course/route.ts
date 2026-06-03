@@ -23,19 +23,15 @@ async function searchPlaces(query: string, count: number = 6) {
 }
 
 async function searchCurrentEvents(query: string) {
-  const today = new Date().toISOString().slice(0, 10) // 2026-06-03
-  const result = await tvly.search(`성수동 ${query} 2026년 6월 현재 진행중`, {
+  const result = await tvly.search(`성수동 ${query} 2026년 6월`, {
     maxResults: 5,
-    includeAnswer: true,
+    includeAnswer: false,
   })
-  return {
-    today,
-    results: result.results.map((r: { title: string; url: string; content: string }) => ({
-      title: r.title,
-      url: r.url,
-      content: r.content.slice(0, 300),
-    })),
-  }
+  return result.results.map((r: { title: string; url: string; content: string }) => ({
+    title: r.title,
+    url: r.url,
+    content: r.content.slice(0, 400),
+  }))
 }
 
 const TOOLS: OpenAI.ChatCompletionTool[] = [
@@ -83,9 +79,10 @@ export async function POST(req: NextRequest) {
 3. 검색 결과를 바탕으로 코스 구성
 
 중요 규칙:
-- search_current_events 결과에서 오늘(${today}) 이전에 종료된 이벤트는 절대 포함하지 마세요. 현재 진행 중이거나 예정된 것만 포함하세요.
-- 팝업/이벤트 스텝의 google_maps_url은 search_current_events 결과에서 나온 실제 웹 URL(기사/이벤트 페이지)을 그대로 사용하세요.
-- 카페/식당/바 등 일반 장소의 google_maps_url은 카카오맵 URL(http://place.map.kakao.com/아이디 또는 https://map.kakao.com/link/search/장소명)을 사용하세요.
+- search_current_events 결과에서 2026년 6월 현재 진행 중인 것만 포함하세요. 종료 날짜가 명시된 경우 ${today} 이전이면 절대 포함하지 마세요.
+- 팝업/이벤트 스텝의 category는 반드시 정확히 "팝업" 으로 쓰세요 (팝업스토어 X).
+- 팝업/이벤트 스텝의 google_maps_url은 search_current_events 결과의 실제 웹 URL(r.url)을 그대로 사용하세요.
+- 카페/식당/바 등 일반 장소의 google_maps_url은 카카오맵 URL(http://place.map.kakao.com/아이디)을 사용하세요.
 
 코스는 반드시 아래 JSON 형태로만 응답하세요 (마크다운 없이 순수 JSON):
 {
