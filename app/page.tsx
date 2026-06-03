@@ -26,7 +26,7 @@ type Message = {
   course?: Course
 }
 
-type ConvStep = 'companion' | 'budget' | 'vibe' | 'generating' | 'done'
+type ConvStep = 'companion' | 'budget' | 'vibe' | 'popup' | 'generating' | 'done'
 
 const QUESTIONS: Record<ConvStep, { text: string; chips: string[] }> = {
   companion: {
@@ -40,6 +40,10 @@ const QUESTIONS: Record<ConvStep, { text: string; chips: string[] }> = {
   vibe: {
     text: '어떤 분위기를 원하세요?',
     chips: ['핫플 위주', '감성적인', '조용한', '활동적인'],
+  },
+  popup: {
+    text: '성수에는 정말 다양한 팝업들이 열리고 있어요!\n팝업도 넣어드릴까요?',
+    chips: ['네, 넣어주세요!', '아니요, 괜찮아요'],
   },
   generating: { text: '', chips: [] },
   done: { text: '', chips: [] },
@@ -123,7 +127,7 @@ export default function Home() {
     { role: 'assistant', text: QUESTIONS.companion.text },
   ])
   const [convStep, setConvStep] = useState<ConvStep>('companion')
-  const [collected, setCollected] = useState({ companion: '', budget: '', vibe: '' })
+  const [collected, setCollected] = useState({ companion: '', budget: '', vibe: '', popup: '' })
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingStep, setLoadingStep] = useState(0)
@@ -159,6 +163,14 @@ export default function Home() {
     } else if (convStep === 'vibe') {
       const next = { ...collected, vibe: text }
       setCollected(next)
+      setConvStep('popup')
+      setTimeout(() => {
+        setMessages((prev) => [...prev, { role: 'assistant', text: QUESTIONS.popup.text }])
+      }, 400)
+
+    } else if (convStep === 'popup') {
+      const next = { ...collected, popup: text }
+      setCollected(next)
       setConvStep('generating')
       setLoading(true)
       setLoadingStep(0)
@@ -171,8 +183,9 @@ export default function Home() {
         setLoadingStep((prev) => (prev < LOADING_STEPS.length - 1 ? prev + 1 : prev))
       }, 2500)
 
+      const wantPopup = text.includes('네') || text.toLowerCase().includes('y')
       try {
-        const message = `${next.companion}, 예산 ${next.budget}, ${next.vibe} 분위기로 성수동 주말 코스 짜줘`
+        const message = `${next.companion}, 예산 ${next.budget}, ${next.vibe} 분위기로 성수동 주말 코스 짜줘${wantPopup ? '. 현재 진행중인 팝업스토어도 꼭 포함해줘.' : '. 팝업은 빼고 카페, 식당, 바 위주로 짜줘.'}`
         const res = await fetch('/api/course', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -200,7 +213,7 @@ export default function Home() {
   const handleRestart = () => {
     setMessages([{ role: 'assistant', text: QUESTIONS.companion.text }])
     setConvStep('companion')
-    setCollected({ companion: '', budget: '', vibe: '' })
+    setCollected({ companion: '', budget: '', vibe: '', popup: '' })
     setInput('')
   }
 
