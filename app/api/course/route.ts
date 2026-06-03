@@ -67,26 +67,7 @@ const TOOLS: OpenAI.ChatCompletionTool[] = [
   },
 ]
 
-export async function POST(req: NextRequest) {
-  const { message } = await req.json()
-
-  const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
-
-  const systemPrompt = `당신은 성수동 주말 코스 전문 AI 챗봇입니다. 오늘 날짜는 ${today}입니다.
-
-반드시 다음 순서로 진행하세요:
-1. search_current_events로 현재 성수 팝업스토어/이벤트 검색
-2. search_places로 조건에 맞는 장소 검색 (카페, 식당, 바 등 각각 검색)
-3. 검색 결과를 바탕으로 코스 구성
-
-중요 규칙:
-- search_current_events 결과에서 2026년 6월 현재 진행 중인 것만 포함하세요. 종료 날짜가 명시된 경우 ${today} 이전이면 절대 포함하지 마세요.
-- 팝업/이벤트 스텝의 category는 반드시 정확히 "팝업" 으로 쓰세요 (팝업스토어 X).
-- 팝업/이벤트 스텝의 google_maps_url은 search_current_events 결과의 실제 웹 URL(r.url)을 그대로 사용하세요.
-- 카페/식당/바 등 일반 장소의 google_maps_url은 카카오맵 URL(http://place.map.kakao.com/아이디)을 사용하세요.
-
-코스는 반드시 아래 JSON 형태로만 응답하세요 (마크다운 없이 순수 JSON):
-{
+const JSON_FORMAT = `{
   "summary": "코스 한 줄 소개",
   "steps": [
     {
@@ -104,7 +85,50 @@ export async function POST(req: NextRequest) {
   "note": "추가 메모"
 }`
 
-  const userMessage = `${message}\n\n(오늘 날짜: ${today}, 장소: 성수동)`
+const COMMON_RULES = (today: string) => `중요 규칙:
+- search_current_events 결과에서 2026년 6월 현재 진행 중인 것만 포함하세요. 종료 날짜가 명시된 경우 ${today} 이전이면 절대 포함하지 마세요.
+- 팝업/이벤트 스텝의 category는 반드시 정확히 "팝업" 으로 쓰세요 (팝업스토어 X).
+- 팝업/이벤트 스텝의 google_maps_url은 search_current_events 결과의 실제 웹 URL(r.url)을 그대로 사용하세요.
+- 카페/식당/바 등 일반 장소의 google_maps_url은 카카오맵 URL(http://place.map.kakao.com/아이디)을 사용하세요.
+- 반드시 순수 JSON으로만 응답하세요 (마크다운 없이).`
+
+export async function POST(req: NextRequest) {
+  const { message, currentCourse } = await req.json()
+
+  const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+
+  let systemPrompt: string
+  let userMessage: string
+
+  if (currentCourse) {
+    // 코스 수정 모드
+    systemPrompt = `당신은 성수동 주말 코스 전문 AI입니다. 오늘 날짜는 ${today}입니다.
+
+사용자가 기존 코스의 일부를 수정하길 원합니다. 사용자의 요청에 따라 해당 부분만 바꾸고 나머지는 유지하세요.
+필요하면 search_places로 대체 장소를 검색하세요.
+
+${COMMON_RULES(today)}
+
+코스는 반드시 아래 JSON 형태로만 응답하세요:
+${JSON_FORMAT}`
+
+    userMessage = `현재 코스:\n${JSON.stringify(currentCourse, null, 2)}\n\n수정 요청: ${message}`
+  } else {
+    // 신규 코스 생성 모드
+    systemPrompt = `당신은 성수동 주말 코스 전문 AI 챗봇입니다. 오늘 날짜는 ${today}입니다.
+
+반드시 다음 순서로 진행하세요:
+1. search_current_events로 현재 성수 팝업스토어/이벤트 검색 (팝업 포함 요청 시)
+2. search_places로 조건에 맞는 장소 검색 (카페, 식당, 바 등 각각 검색)
+3. 검색 결과를 바탕으로 코스 구성
+
+${COMMON_RULES(today)}
+
+코스는 반드시 아래 JSON 형태로만 응답하세요:
+${JSON_FORMAT}`
+
+    userMessage = `${message}\n\n(오늘 날짜: ${today}, 장소: 성수동)`
+  }
 
   const messages: OpenAI.ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },

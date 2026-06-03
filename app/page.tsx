@@ -128,6 +128,7 @@ export default function Home() {
   ])
   const [convStep, setConvStep] = useState<ConvStep>('companion')
   const [collected, setCollected] = useState({ companion: '', budget: '', vibe: '', popup: '' })
+  const [currentCourse, setCurrentCourse] = useState<Course | null>(null)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingStep, setLoadingStep] = useState(0)
@@ -193,8 +194,9 @@ export default function Home() {
         })
         const data = await res.json()
         if (data.course) {
+          setCurrentCourse(data.course)
           setMessages((prev) => [...prev, { role: 'assistant', course: data.course }])
-          setMessages((prev) => [...prev, { role: 'assistant', text: '다른 코스가 필요하면 아래 버튼을 눌러주세요!' }])
+          setMessages((prev) => [...prev, { role: 'assistant', text: '마음에 안 드는 장소가 있으면 말씀해주세요! 바꿔드릴게요 😊' }])
           setConvStep('done')
         } else {
           setMessages((prev) => [...prev, { role: 'assistant', text: '코스 생성에 실패했어요. 다시 시도해주세요.' }])
@@ -207,6 +209,35 @@ export default function Home() {
         clearInterval(interval)
         setLoading(false)
       }
+
+    } else if (convStep === 'done') {
+      // 코스 수정 모드
+      setLoading(true)
+      setLoadingStep(0)
+      const interval = setInterval(() => {
+        setLoadingStep((prev) => (prev < LOADING_STEPS.length - 1 ? prev + 1 : prev))
+      }, 2000)
+
+      try {
+        const res = await fetch('/api/course', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, currentCourse }),
+        })
+        const data = await res.json()
+        if (data.course) {
+          setCurrentCourse(data.course)
+          setMessages((prev) => [...prev, { role: 'assistant', course: data.course }])
+          setMessages((prev) => [...prev, { role: 'assistant', text: '수정했어요! 또 바꾸고 싶은 곳 있으면 말씀해주세요 😊' }])
+        } else {
+          setMessages((prev) => [...prev, { role: 'assistant', text: '수정에 실패했어요. 다시 말씀해주세요.' }])
+        }
+      } catch {
+        setMessages((prev) => [...prev, { role: 'assistant', text: '오류가 발생했어요. 다시 시도해주세요.' }])
+      } finally {
+        clearInterval(interval)
+        setLoading(false)
+      }
     }
   }
 
@@ -214,6 +245,7 @@ export default function Home() {
     setMessages([{ role: 'assistant', text: QUESTIONS.companion.text }])
     setConvStep('companion')
     setCollected({ companion: '', budget: '', vibe: '', popup: '' })
+    setCurrentCourse(null)
     setInput('')
   }
 
@@ -293,15 +325,15 @@ export default function Home() {
       )}
 
       {/* 입력창 */}
-      {convStep !== 'done' && (
-        <div className="border-t border-zinc-800 px-4 py-4 flex-shrink-0">
-          <div className="mx-auto max-w-2xl flex gap-3">
+      <div className="border-t border-zinc-800 px-4 py-4 flex-shrink-0">
+        <div className="mx-auto max-w-2xl flex gap-3">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAnswer(input)}
               placeholder={
+                convStep === 'done' ? '예) 이 식당 말고 다른 곳으로 바꿔줘, 더 저렴한 카페로...' :
                 convStep === 'companion' ? '예) 연인이랑, 친구 3명이랑...' :
                 convStep === 'budget' ? '예) 3만원대, 5만원 정도...' :
                 convStep === 'vibe' ? '예) 감성적인, 핫플 위주...' : ''
@@ -318,7 +350,6 @@ export default function Home() {
             </button>
           </div>
         </div>
-      )}
     </div>
   )
 }
